@@ -6,7 +6,7 @@ import Levenshtein
 import numpy as np
 from tqdm import tqdm
 
-from helpers import write_lines, read_parallel_lines, encode_verb_form, \
+from utils.helpers import write_lines, read_parallel_lines, encode_verb_form, \
     apply_reverse_transformation, SEQ_DELIMETERS, START_TOKEN
 
 
@@ -466,20 +466,45 @@ def convert_tagged_line(line, delimeters=SEQ_DELIMETERS):
 
 
 def main(args):
-    convert_data_from_raw_files(args.source, args.target, args.output_file, args.chunk_size)
+    convert_data_from_raw_files("../data/fce-released-dataset/fce-original.txt",
+                                "../data/fce-released-dataset/fce-applied.txt",
+                                "../data/fce-released-dataset/fce-output.txt",
+                                args.chunk_size)
 
 
 if __name__ == '__main__':
+    source_sent='A ten years old boy go school'
+    # target_sent='A ten-year-old boy goes to school.'
+    target_sent='A ten years old boy go to school'
+    try:
+        aligned_sent = align_sequences(source_sent, target_sent)
+    except Exception:
+        aligned_sent = align_sequences(source_sent, target_sent)
+    alignments = [aligned_sent]
+    try:
+        check_sent = convert_tagged_line(aligned_sent)
+    except Exception:
+        # debug mode
+        aligned_sent = align_sequences(source_sent, target_sent)
+        check_sent = convert_tagged_line(aligned_sent)
+
+    if "".join(check_sent.split()) != "".join(
+            target_sent.split()):
+        # do it again for debugging
+        aligned_sent = align_sequences(source_sent, target_sent)
+        check_sent = convert_tagged_line(aligned_sent)
+        print(f"Incorrect pair: \n{target_sent}\n{check_sent}")
+    exit(0)
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', '--source',
-                        help='Path to the source file',
-                        required=True)
-    parser.add_argument('-t', '--target',
-                        help='Path to the target file',
-                        required=True)
-    parser.add_argument('-o', '--output_file',
-                        help='Path to the output file',
-                        required=True)
+    # parser.add_argument('-s', '--source',
+    #                     help='Path to the source file',
+    #                     required=True)
+    # parser.add_argument('-t', '--target',
+    #                     help='Path to the target file',
+    #                     required=True)
+    # parser.add_argument('-o', '--output_file',
+    #                     help='Path to the output file',
+    #                     required=True)
     parser.add_argument('--chunk_size',
                         type=int,
                         help='Dump each chunk size.',

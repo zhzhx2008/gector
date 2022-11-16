@@ -127,6 +127,10 @@ def main(args):
                       predictor_dropout=args.predictor_dropout,
                       label_smoothing=args.label_smoothing,
                       special_tokens_fix=args.special_tokens_fix)
+    # from torchsummary import summary
+    # summary(model, (20, 300))
+    # from torchinfo import summary
+    # summary(model, (32, 20, 300))
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     if torch.cuda.is_available():
@@ -184,14 +188,23 @@ def main(args):
 
 
 if __name__ == '__main__':
+
+
+
     # read parameters
     parser = argparse.ArgumentParser()
     parser.add_argument('--train_set',
-                        help='Path to the train data', required=True)
+                        help='Path to the train data',
+                        # required=True,
+                        default='./data/fce-released-dataset/fce-output.txt')
     parser.add_argument('--dev_set',
-                        help='Path to the dev data', required=True)
+                        help='Path to the dev data',
+                        # required=True,
+                        default='./data/fce-released-dataset/fce-output.txt')
     parser.add_argument('--model_dir',
-                        help='Path to the model dir', required=True)
+                        help='Path to the model dir',
+                        # required=True,
+                        default='./output_model_dir')
     parser.add_argument('--vocab_path',
                         help='Path to the model vocabulary directory.'
                              'If not set then build vocab from data',
@@ -199,7 +212,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size',
                         type=int,
                         help='The size of the batch.',
-                        default=32)
+                        default=4)
     parser.add_argument('--max_len',
                         type=int,
                         help='The max sentence length'
@@ -212,7 +225,7 @@ if __name__ == '__main__':
     parser.add_argument('--n_epoch',
                         type=int,
                         help='The number of epoch for training model.',
-                        default=20)
+                        default=2)
     parser.add_argument('--patience',
                         type=int,
                         help='The number of epoch with any improvements'
@@ -293,7 +306,7 @@ if __name__ == '__main__':
     parser.add_argument('--transformer_model',
                         choices=['bert', 'distilbert', 'gpt2', 'roberta', 'transformerxl', 'xlnet', 'albert'],
                         help='Name of the transformer model.',
-                        default='roberta')
+                        default='bert')
     parser.add_argument('--special_tokens_fix',
                         type=int,
                         help='Whether to fix problem with [CLS], [SEP] tokens tokenization.',

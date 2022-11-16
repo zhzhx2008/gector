@@ -406,8 +406,12 @@ class PretrainedBertIndexer(WordpieceIndexer):
             logger.warning("Your BERT model appears to be uncased, "
                            "but your indexer is not lowercasing tokens.")
 
+        # hack
+        model_path = pretrained_model
+        if model_path == 'xlnet-base-cased':
+            model_path = '/Users/chang/workspace_of_python/pretrained_language_model/huggingface_pretrained_models/xlnetmodel'
         bert_tokenizer = AutoTokenizer.from_pretrained(
-            pretrained_model, do_lower_case=do_lowercase, do_basic_tokenize=False)
+            model_path, do_lower_case=do_lowercase, do_basic_tokenize=False)
 
         # to adjust all tokenizers
         if hasattr(bert_tokenizer, 'encoder'):

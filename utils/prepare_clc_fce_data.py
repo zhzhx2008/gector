@@ -80,6 +80,7 @@ def convert_fce(fce_dir):
 
     # Convert XML docs to the corpora format
     filenames = sorted(glob.glob(os.path.join(dataset_dir, '*/*.xml')))
+    filenames = filenames[:5]
 
     docs = []
     for filename in filenames:
@@ -90,9 +91,10 @@ def convert_fce(fce_dir):
 
 
 def main():
-    fce = convert_fce(args.fce_dataset_path)
-    with open(args.output + "/fce-original.txt", 'w', encoding='utf-8') as out_original, \
-            open(args.output + "/fce-applied.txt", 'w', encoding='utf-8') as out_applied:
+    # fce = convert_fce(args.fce_dataset_path)
+    fce = convert_fce('../data/fce-released-dataset')
+    with open("../data/fce-released-dataset/fce-original.txt", 'w', encoding='utf-8') as out_original, \
+            open("../data/fce-released-dataset/fce-applied.txt", 'w', encoding='utf-8') as out_applied:
         for doc in tqdm(fce, unit='doc'):
             sents = re.split(r"\n +\n", doc)
             for sent in sents:
@@ -114,10 +116,10 @@ def main():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=(
         "Convert CLC-FCE dataset to the parallel sentences format."))
-    parser.add_argument('fce_dataset_path',
-                        help='Path to the folder with the FCE dataset')
-    parser.add_argument('--output',
-                        help='Path to the output folder')
+    # parser.add_argument('fce_dataset_path',
+    #                     help='Path to the folder with the FCE dataset')
+    # parser.add_argument('--output',
+    #                     help='Path to the output folder')
     args = parser.parse_args()
 
     main()

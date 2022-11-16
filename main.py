@@ -3,58 +3,38 @@ import argparse
 from utils.helpers import read_lines
 from gector.gec_model import GecBERTModel
 
+import time
+import json
 
-def predict_for_file(input_file, output_file, model, batch_size=32):
-    # test_data = read_lines(input_file)
-    # test_data = [
-    #     'I likes to swimming.'
-    # ]
-    s = 'I likes to swimming.'
+from flask import Flask, jsonify, request
+
+app = Flask(__name__)
+app.config.from_object(__name__)
+app.config['JSON_AS_ASCII'] = False
+
+@app.route('/')
+def index():
+    return "Hello"
+
+@app.route('/gector', methods = ['GET'])
+def hello():
+    s = request.args.get('s')
+    print('s={}'.format(s))
     predictions = []
     cnt_corrections = 0
     batch = []
     batch.append(s.split())
-    # for sent in test_data:
-    #     batch.append(sent.split())
-    #     if len(batch) == batch_size:
-    #         preds, cnt = model.handle_batch(batch)
-    #         predictions.extend(preds)
-    #         cnt_corrections += cnt
-    #         batch = []
-    if batch:
-        preds, cnt = model.handle_batch(batch)
-        predictions.extend(preds)
-        cnt_corrections += cnt
+    preds, cnt = model.handle_batch(batch)
+    predictions.extend(preds)
+    cnt_corrections += cnt
+    res = [" ".join(x) for x in predictions]
+    data = {}
+    data['s'] = s
+    data['res'] = res[0]
+    print(data)
+    return jsonify(code=1000, message='success', data=data)
 
-    # with open(output_file, 'w') as f:
-    #     f.write("\n".join([" ".join(x) for x in predictions]) + '\n')
-    print([" ".join(x) for x in predictions])
-    return cnt_corrections
-
-
-def main(args):
-    # get all paths
-    model = GecBERTModel(vocab_path=args.vocab_path,
-                         model_paths=[args.model_path],
-                         max_len=args.max_len, min_len=args.min_len,
-                         iterations=args.iteration_count,
-                         min_error_probability=args.min_error_probability,
-                         min_probability=args.min_error_probability,
-                         lowercase_tokens=args.lowercase_tokens,
-                         model_name=args.transformer_model,
-                         special_tokens_fix=args.special_tokens_fix,
-                         log=False,
-                         confidence=args.additional_confidence,
-                         is_ensemble=args.is_ensemble,
-                         weigths=args.weights)
-
-    cnt_corrections = predict_for_file(args.input_file, args.output_file, model,
-                                       batch_size=args.batch_size)
-    # evaluate with m2 or ERRANT
-    print(f"Produced overall corrections: {cnt_corrections}")
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     # read parameters
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_path',
@@ -117,4 +97,17 @@ if __name__ == '__main__':
                         help='Used to calculate weighted average', nargs='+',
                         default=None)
     args = parser.parse_args()
-    main(args)
+    model = GecBERTModel(vocab_path=args.vocab_path,
+                         model_paths=[args.model_path],
+                         max_len=args.max_len, min_len=args.min_len,
+                         iterations=args.iteration_count,
+                         min_error_probability=args.min_error_probability,
+                         min_probability=args.min_error_probability,
+                         lowercase_tokens=args.lowercase_tokens,
+                         model_name=args.transformer_model,
+                         special_tokens_fix=args.special_tokens_fix,
+                         log=False,
+                         confidence=args.additional_confidence,
+                         is_ensemble=args.is_ensemble,
+                         weigths=args.weights)
+    app.run(host='0.0.0.0', port=80, debug=True)

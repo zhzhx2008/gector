@@ -1,0 +1,104 @@
+《GECToR – Grammatical Error Correction: Tag, Not Rewrite》  
+https://arxiv.org/abs/2005.12592  
+https://github.com/grammarly/gector  
+
+Seq2Seq模型缺点：  
+1.解码不能并行计算，速度慢
+2.输出的长度不定，需要更多的数据
+3.不可解释，不能直接知道到底是什么类型的语法错误，通常还需要使用其它工具来分析错误，比如errant。
+
+使用序列标签模型（即给序列打标签）替代生成模型，可以解决上述三个缺点。
+
+原理：
+我们可以找到一系列编辑操作，从而把语法错误的句子变成语法正确的句子，这和编辑距离的编辑很类似。
+编辑操作怎么变成序列打标签呢？我们可以把编辑映射某个Token上，认为是对这个Token的操作。
+有时候需要对同一个Token进行多个编辑操作，通过多次(其实最多也就两三次)序列打标签。
+示例：
+original sentence：A ten years old boy go school
+iteration 1：A ten-years old boy goes school         把ten和years合并成ten-years，把go变成goes
+iteration 2：A ten-year-old boy goes to school       把ten-years变成ten-year然后与old合并，在goes后面增加to
+iteration 3：A ten-year-old boy goes to school.      在school后面增加句号”.”。
+
+编辑操作被定义为对某个Token的变换，如果词典是5000的话，则总共包含4971个基本变换和29个g-变换。
+基本变化包括两类：与Token无关的和与Token相关的变换。
+与Token无关的包括$KEEP(不做修改)、$DELETE(删除当前Token)。
+与Token相关的有1167个$APPEND_t1变换，也就是在当前Token后面可以插入1167个常见词t1(5000个词并不是所以的词都可以被插入，因为有些词很少会遗漏)；另外还有3802个$REPLACE_t2，也就是把当前Token替换成t2。
+
+g-变换示例：
+g-1，小写变大写，internet纠正为Internet
+g-2，小写变大写，iphone纠正为iPhone
+g-3, 大写变小写，Medical纠正为medical
+...
+g-5, 合并，in to纠正为into
+...
+g-7，分开，long-run纠正为long run
+...
+g-29，时态纠正，mistook纠正为mistaking
+
+训练数据的处理：
+步骤1：
+需要有一个预处理的过程把句对变成Token上的变换标签。
+”A ten years old boy go school”->”A ten-year-old boy goes to school.”
+A → A
+ten → ten, -
+years → year, -
+old → old
+boy → boy
+go → goes, to
+school → school, .
+需要找到与之对齐的子序列，使得修改后的编辑距离最小。这里的编辑距离的cost函数经过了修改，使得g-变换的代价为零。
+步骤2：
+找到每个Token的变换
+[A → A] : $KEEP
+[ten → ten, -]: $KEEP, $MERGE_HYPHEN
+[years → year, -]: $NOUN_NUMBER_SINGULAR, $MERGE_HYPHEN
+[old → old]: $KEEP
+[boy → boy]: $KEEP
+[go → goes, to]: $VERB_FORM_VB_VBZ, $APPEND_to
+[school → school, .]: $KEEP, $APPEND_{.}
+步骤3：
+只保留一个变换，因为一个Token只能有一个Tag。
+多个变换优先保留𝐾𝐸𝐸𝑃之外的，因为这个𝑇𝑎𝑔太多了，训练数据足够。如果去掉KEEP还有多个，则保留第一个。
+[A → A] : $KEEP
+[ten → ten, -]: $MERGE_HYPHEN
+[years → year, -]: $NOUN_NUMBER_SINGULAR
+[old → old]: $KEEP
+[boy → boy]: $KEEP
+[go → goes, to]: $VERB_FORM_VB_VBZ
+[school → school, .]: $APPEND_{.}
+
+模型结构：
+BERT等Transformer模型，在最上面加两个全连接层和一个softmax。
+
+迭代纠错：基本上两次迭代就能达到比较好的效果，如果不在意纠错速度，可以到三次或者四次。
+
+训练分为三个阶段：
+1.在合成数据上的Pretraining；
+2.在错误-正确的句对上的fine-tuning；
+3.在同时包含错误-正确和正确-正确句对数据上的fine-tuning。
+如果没有第三步，模型输入的都是语法错误的句子，但实际输入是包含没有语法错误的句子的。
+
+第一阶段训练数据：
+https://github.com/awasthiabhijeet/PIE/tree/master/errorify，9百万合成的语法错误-语法正确句对
+第二三阶段训练数据：
+NUCLE，https://www.comp.nus.edu.sg/~nlp/corpora.html
+Lang-8，https://sites.google.com/site/naistlang8corpora/
+FCE，https://ilexir.co.uk/datasets/index.html
+Write & Improve + LOCNESS Corpus，https://www.cl.cam.ac.uk/research/nl/bea2019st/data/wi+locness_v2.1.bea19.tar.gz
+
+
+
+纠错系统：
+简单的用python的Flask封装了一个http的get请求，ngrok内网穿透访问。
+测试示例：
+浏览器直接输入，https://a96f-111-192-218-213.jp.ngrok.io/gector?s=I likes to swiming，回车即可
+返回值：
+{
+    code: 1000,
+    data: {
+        res: "I like swiming",
+        s: "I likes to swiming"
+    },
+    message: "success"
+}
+服务部署在笔记本上，请悠着点儿测试，不要大批量频繁访问哈～
